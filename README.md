@@ -1,7 +1,6 @@
 # herdr-paste-image
 
-A [Herdr](https://herdr.dev) plugin with two clipboard helpers for AI agent
-panes:
+**Free & open-source** (MIT) [Herdr](https://herdr.dev) plugin with two clipboard helpers for AI agent panes:
 
 1. **Paste image** — gives **every AI agent in Herdr the image-paste
    experience of Claude Code**. Press a key → the plugin grabs the image from
