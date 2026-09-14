@@ -16,3 +16,9 @@ id = "dedent"
 title = "Strip shared leading whitespace from clipboard text"
 contexts = ["workspace"]
 command = ["bash", "dedent-clipboard.sh"]
+
+[[actions]]
+id = "copy-unwrapped"
+title = "Copy recent pane output with soft wraps undone"
+contexts = ["workspace"]
+command = ["bash", "copy-unwrapped.sh"]
