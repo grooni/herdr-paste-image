@@ -52,24 +52,47 @@ set_clipboard_b64() {
 b64=$(get_clipboard_b64) || fail "clipboard has no text"
 [[ -n "$b64" ]] || fail "clipboard has no text"
 
-# Count the smallest leading whitespace run across all non-blank lines.
-min=$(printf '%s' "$b64" | base64 -d | awk '
-  NF {
+# Analyze indentation of all lines except the first (a mouse selection
+# starts mid-line, so the first copied line has no leading margin).
+#   min  — smallest indent among non-blank lines 2..N
+#   n2   — lines (any position) with at least 2 leading spaces
+#   nbl  — non-blank lines (any position)
+stats=$(printf '%s' "$b64" | base64 -d | awk '
+  NR > 1 && NF {
     n = 0
     while (n < length($0) && substr($0, n+1, 1) ~ /[ \t]/) n++
     if (min == "" || n < min) min = n
   }
-  END { print (min == "" ? 0 : min) }
+  {
+    if (NF) nbl++
+    ind = 0
+    while (ind < length($0) && substr($0, ind+1, 1) ~ /[ \t]/) ind++
+    if (ind >= 2) n2++
+  }
+  END { printf "%d %d %d\n", (min == "" ? 0 : min), n2 + 0, nbl + 0 }
 ')
+read -r min n2 nbl <<<"$stats"
 
-if [[ "$min" -eq 0 ]]; then
+amount=0
+if [[ "$min" -gt 0 ]]; then
+  # Uniform margin on every line: strip it.
+  amount="$min"
+elif [[ "$nbl" -gt 0 && $((n2 * 2)) -ge "$nbl" ]]; then
+  # Mixed content (bullets flush-left, paragraphs with a 2-space margin,
+  # typical for TUI chat renders): strip the 2-space margin where present.
+  amount=2
+fi
+
+if [[ "$amount" -eq 0 ]]; then
   notify "no shared indent to strip"
   log "no shared indent found, clipboard unchanged"
   exit 0
 fi
 
-# Strip exactly `min` leading whitespace chars from each line.
-ded_b64=$(printf '%s' "$b64" | base64 -d | sed "s/^[ \t]\{$min\}//" | base64 -w0)
+# Strip exactly `amount` leading whitespace chars where present; also drop
+# BEL control characters that TUI renderers leave in copied text.
+printf '%s' "$b64" | base64 -d | tr -d '\007' | sed "s/^[ \t]\{$amount\}//" | base64 -w0 > /tmp/.herdr_dedent_b64
+ded_b64=$(cat /tmp/.herdr_dedent_b64); rm -f /tmp/.herdr_dedent_b64
 [[ -n "$ded_b64" ]] || fail "dedent produced empty output"
 
 set_clipboard_b64 "$ded_b64" || fail "cannot write clipboard"
