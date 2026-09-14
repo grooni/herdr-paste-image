@@ -1,16 +1,22 @@
 # herdr-paste-image
 
-A [Herdr](https://herdr.dev) plugin that gives **every AI agent in Herdr the
-image-paste experience of Claude Code**.
+A [Herdr](https://herdr.dev) plugin with two clipboard helpers for AI agent
+panes:
 
-Press **Ctrl+V** → the plugin grabs the image from your clipboard, saves it as
-a PNG file, and types `[Image #N] /absolute/path.png` into the focused agent
-pane (Codex, Gemini CLI, Claude Code, …). The agent reads the file and sees
-the actual image — the same result as Claude Code's native clipboard paste,
-which other agent CLIs don't have.
+1. **Paste image** — gives **every AI agent in Herdr the image-paste
+   experience of Claude Code**. Press a key → the plugin grabs the image from
+   your clipboard, saves it as a PNG file, and types
+   `[Image #N] /absolute/path.png` into the focused agent pane (Codex, Gemini
+   CLI, Claude Code, …). The agent reads the file and sees the actual image —
+   the same result as Claude Code's native clipboard paste, which other
+   agent CLIs don't have. If the clipboard contains text instead of an
+   image, the plugin pastes the text, so binding it to a direct key does not
+   break normal pasting.
 
-If the clipboard contains text instead of an image, the plugin pastes the
-text, so binding it to `Ctrl+V` does not break normal pasting.
+2. **Dedent clipboard** — TUI agents (Codex, …) render output with a left
+   margin, so mouse-copied text carries extra leading spaces on every line.
+   The dedent action strips the shared leading whitespace from all clipboard
+   lines while preserving relative indentation (nested lists, code).
 
 ## How it works
 
@@ -44,11 +50,17 @@ git clone https://github.com/<owner>/herdr-paste-image
 herdr plugin link /path/to/herdr-paste-image
 ```
 
-## Keybinding
+## Keybindings
 
 Add to `~/.config/herdr/config.toml`:
 
 ```toml
+[[keys.command]]
+key = "f9"
+type = "shell"
+command = "/home/qo0d/.local/bin/herdr plugin action invoke paste-image.dedent"
+description = "strip shared indent from clipboard text"
+
 [[keys.command]]
 key = "f8"
 type = "shell"
@@ -94,6 +106,8 @@ default `~/.local/state/herdr-paste-images/`.
 # put an image in your clipboard (e.g. Win+Shift+S on Windows),
 # then:
 herdr plugin action invoke paste-image.paste
+# copy text with extra indentation, then:
+herdr plugin action invoke paste-image.dedent
 ```
 
 A notification should appear and the path should be typed into the focused
@@ -129,15 +143,27 @@ MIT — see [LICENSE](LICENSE).
 **Установка:** `herdr plugin link <путь к папке плагина>` (локально) или
 `herdr plugin install <owner>/herdr-paste-image` (с GitHub).
 
-**Хоткей** — добавить в `~/.config/herdr/config.toml`:
+**Хоткеи** — добавить в `~/.config/herdr/config.toml`:
 
 ```toml
+[[keys.command]]
+key = "f9"
+type = "shell"
+command = "/home/qo0d/.local/bin/herdr plugin action invoke paste-image.dedent"
+description = "strip shared indent from clipboard text"
+
 [[keys.command]]
 key = "f8"
 type = "shell"
 command = "/home/qo0d/.local/bin/herdr plugin action invoke paste-image.paste"
 description = "paste clipboard image as path"
 ```
+
+**F8** — вставить картинку из буфера как путь в активного агента.
+**F9** — убрать лишние отступы слева из текста в буфере (после копирования
+мышкой из Codex и других TUI, которые рисуют вывод с полем слева).
+Вложенность списков и отступы кода сохраняются — срезается только общий
+лишний префикс.
 
 После правки конфига — `prefix+shift+r` или перезапуск Herdr. В `command`
 укажи полный путь к своему бинарнику herdr.
