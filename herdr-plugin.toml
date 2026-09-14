@@ -1,0 +1,12 @@
+id = "paste-image"
+name = "Paste Image"
+version = "0.1.0"
+min_herdr_version = "0.7.4"
+description = "Save a clipboard image to a file and paste its path into the active agent pane"
+platforms = ["linux"]
+
+[[actions]]
+id = "paste"
+title = "Paste clipboard image"
+contexts = ["workspace"]
+command = ["bash", "paste-image.sh"]
