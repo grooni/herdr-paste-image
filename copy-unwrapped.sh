@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# copy-unwrapped — herdr plugin action
+# copy-unwrapped — herdr plugin action (F10)
 # Copies the recent output of the focused pane to the clipboard with
-# soft line-wraps undone: herdr knows where a long line was split only
-# because of the terminal width, and --source recent-unwrapped rejoins
-# those pieces. Code copied this way keeps its real line structure.
+# soft line-wraps undone (herdr rejoins lines split by terminal width),
+# TUI chrome (borders, spinner lines) removed, and the shared left
+# margin stripped. See clean-text.sh for the cleanup details.
 #
 # Optional config: in $HERDR_PLUGIN_CONFIG_DIR/config.env set
 #   copy_lines=60
@@ -11,6 +11,7 @@
 set -uo pipefail
 
 HERDR="${HERDR_BIN_PATH:-herdr}"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 log()    { printf '%s\n' "copy-unwrapped: $*" >&2; }
 notify() { "$HERDR" notification show "Copy unwrapped" --body "$1" >/dev/null 2>&1 || true; }
@@ -44,24 +45,27 @@ text=$(printf '%s' "$text" | grep -v -E \
   2>/dev/null || true)
 [[ -n "$text" ]] || fail "nothing left after filtering TUI chrome"
 
-b64=$(printf '%s' "$text" | base64 -w0)
+summary=$(printf '%s' "$text" | "$ROOT/clean-text.sh" 2>&1 >/tmp/.herdr_cu_out)
+result_b64=$(base64 -w0 /tmp/.herdr_cu_out); rm -f /tmp/.herdr_cu_out
+[[ -n "$result_b64" ]] || fail "cleanup produced empty output"
 
 # Write to clipboard via base64 so non-ASCII survives the Windows boundary.
 if command -v powershell.exe >/dev/null 2>&1; then
-  printf '%s' "$b64" | powershell.exe -NoProfile -Command '
+  printf '%s' "$result_b64" | powershell.exe -NoProfile -Command '
     Add-Type -AssemblyName System.Windows.Forms
     $b = [Console]::In.ReadToEnd()
     $t = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b))
     [System.Windows.Forms.Clipboard]::SetText($t)
   ' >/dev/null 2>&1 || fail "cannot write clipboard"
 elif command -v wl-copy >/dev/null 2>&1; then
-  printf '%s' "$b64" | base64 -d | wl-copy 2>/dev/null || fail "cannot write clipboard"
+  printf '%s' "$result_b64" | base64 -d | wl-copy 2>/dev/null || fail "cannot write clipboard"
 elif command -v xclip >/dev/null 2>&1; then
-  printf '%s' "$b64" | base64 -d | xclip -selection clipboard -i 2>/dev/null || fail "cannot write clipboard"
+  printf '%s' "$result_b64" | base64 -d | xclip -selection clipboard -i 2>/dev/null || fail "cannot write clipboard"
 else
   fail "no clipboard tool available"
 fi
 
-notify "copied $lines unwrapped lines from $pane_id"
-log "copied $lines unwrapped lines from pane $pane_id"
+summary="${summary#clean-text: }"
+notify "copied $lines lines from $pane_id, $summary"
+log "copied $lines lines from pane $pane_id, $summary"
 exit 0
