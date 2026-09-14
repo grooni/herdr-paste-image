@@ -10,3 +10,9 @@ id = "paste"
 title = "Paste clipboard image"
 contexts = ["workspace"]
 command = ["bash", "paste-image.sh"]
+
+[[actions]]
+id = "dedent"
+title = "Strip shared leading whitespace from clipboard text"
+contexts = ["workspace"]
+command = ["bash", "dedent-clipboard.sh"]
