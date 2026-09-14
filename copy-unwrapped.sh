@@ -36,6 +36,14 @@ text=$("$HERDR" pane read "$pane_id" --source recent-unwrapped \
        --lines "$lines" --format text 2>/dev/null) || fail "cannot read pane $pane_id"
 [[ -n "$text" ]] || fail "pane returned no text"
 
+# Drop TUI chrome: lines made only of box-drawing characters, border
+# rules, or braille spinner fragments never carry code or prose.
+# Short code lines like "}" or ")" are NOT matched and are kept.
+text=$(printf '%s' "$text" | grep -v -E \
+  '^[[:space:]─│┌┐└┘├┤┬┴┼═║╔╗╚╝=─┄┅┈┉·⁃]*$|^[[:space:]⠀-⣿]*$' \
+  2>/dev/null || true)
+[[ -n "$text" ]] || fail "nothing left after filtering TUI chrome"
+
 b64=$(printf '%s' "$text" | base64 -w0)
 
 # Write to clipboard via base64 so non-ASCII survives the Windows boundary.
