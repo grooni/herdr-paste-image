@@ -50,22 +50,26 @@ Add to `~/.config/herdr/config.toml`:
 
 ```toml
 [[keys.command]]
-key = "ctrl+v"
-type = "plugin_action"
-command = "paste-image.paste"
-description = "paste clipboard image (or text) into active agent"
+key = "f8"
+type = "shell"
+command = "/home/qo0d/.local/bin/herdr plugin action invoke paste-image.paste"
+description = "paste clipboard image as path"
 ```
 
 Reload the config with `prefix+shift+r` (or restart Herdr) after editing.
+Use the absolute path of your `herdr` binary in `command`.
 
-Notes:
+Version notes (tested on Herdr 0.7.4 / WSL2 / Windows Terminal):
 
-- Claude Code has its own native clipboard image paste on **Alt+V**
-  (Windows/WSL); Herdr does not touch that key, so inside Claude Code panes
-  both work: Alt+V gives the native `[Image #1]` chip, Ctrl+V gives the
-  plugin's path form.
-- If your terminal intercepts Ctrl+V before Herdr sees it, pick another
-  direct key such as `ctrl+alt+v`, or the prefix form `prefix+i`.
+- `type = "plugin_action"` with `command = "paste-image.paste"` is the
+  documented form, but it did not fire on 0.7.4 — use `type = "shell"` as
+  above. On newer Herdr versions, try `plugin_action` first.
+- Direct `ctrl+v` never reaches Herdr: Windows Terminal intercepts it as
+  text paste. `alt+v` arrives as `ESC`+`v` and 0.7.4 does not reassemble it
+  into a chord. Function keys (e.g. `f8`) and `prefix` bindings are reliable.
+- Claude Code has native clipboard image paste of its own (Alt+V on
+  Windows/WSL); other agents (Codex, …) do not — that is exactly the gap
+  this plugin fills.
 
 ## Configuration: where images are stored
 
@@ -129,15 +133,25 @@ MIT — see [LICENSE](LICENSE).
 
 ```toml
 [[keys.command]]
-key = "ctrl+v"
-type = "plugin_action"
-command = "paste-image.paste"
-description = "paste clipboard image (or text) into active agent"
+key = "f8"
+type = "shell"
+command = "/home/qo0d/.local/bin/herdr plugin action invoke paste-image.paste"
+description = "paste clipboard image as path"
 ```
 
-После правки конфига — `prefix+shift+r` или перезапуск Herdr. У Claude Code
-остаётся родная вставка на **Alt+V** (Windows/WSL) — herdr её не трогает.
-Если терминал перехватывает Ctrl+V — возьми `ctrl+alt+v` или `prefix+i`.
+После правки конфига — `prefix+shift+r` или перезапуск Herdr. В `command`
+укажи полный путь к своему бинарнику herdr.
+
+Проверено на Herdr 0.7.4 / WSL2 / Windows Terminal:
+
+- `type = "plugin_action"` в доках есть, но на 0.7.4 не срабатывал —
+  используй `type = "shell"` как выше; на новых версиях herdr попробуй
+  `plugin_action`
+- `ctrl+v` до herdr не долетает (Windows Terminal перехватывает под вставку
+  текста), `alt+v` приходит как ESC+v и 0.7.4 не собирает его в аккорд —
+  надёжно работают функциональные клавиши (`f8`) и префикс (`prefix+i`)
+- У Claude Code есть своя родная вставка картинок (Alt+V на Windows/WSL);
+  у Codex и других агентов её нет — именно эту дыру плагин и закрывает
 
 **Где хранить картинки** (настраивается):
 
