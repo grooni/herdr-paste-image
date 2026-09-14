@@ -1,13 +1,16 @@
 # herdr-paste-image
 
-A [Herdr](https://herdr.dev) plugin that lets you **paste images into your AI
-agent's prompt with one hotkey** — the same way you paste images into Claude
-Code or ChatGPT.
+A [Herdr](https://herdr.dev) plugin that gives **every AI agent in Herdr the
+image-paste experience of Claude Code**.
 
-Press a key → the plugin grabs the image from your clipboard, saves it as a
-PNG file, and types the absolute file path into the focused agent pane
-(Claude Code, Codex, Gemini CLI, …). No more manually saving screenshots and
-typing paths.
+Press **Ctrl+V** → the plugin grabs the image from your clipboard, saves it as
+a PNG file, and types `[Image #N] /absolute/path.png` into the focused agent
+pane (Codex, Gemini CLI, Claude Code, …). The agent reads the file and sees
+the actual image — the same result as Claude Code's native clipboard paste,
+which other agent CLIs don't have.
+
+If the clipboard contains text instead of an image, the plugin pastes the
+text, so binding it to `Ctrl+V` does not break normal pasting.
 
 ## How it works
 
@@ -47,15 +50,22 @@ Add to `~/.config/herdr/config.toml`:
 
 ```toml
 [[keys.command]]
-key = "prefix+i"
+key = "ctrl+v"
 type = "plugin_action"
 command = "paste-image.paste"
-description = "paste clipboard image as path"
+description = "paste clipboard image (or text) into active agent"
 ```
 
-`prefix` is your configured Herdr prefix (`ctrl+b` by default), so the default
-binding is `Ctrl+b` then `i`. Pick any key you like. Reload the config with
-`prefix+shift+r` (or restart Herdr) after editing.
+Reload the config with `prefix+shift+r` (or restart Herdr) after editing.
+
+Notes:
+
+- Claude Code has its own native clipboard image paste on **Alt+V**
+  (Windows/WSL); Herdr does not touch that key, so inside Claude Code panes
+  both work: Alt+V gives the native `[Image #1]` chip, Ctrl+V gives the
+  plugin's path form.
+- If your terminal intercepts Ctrl+V before Herdr sees it, pick another
+  direct key such as `ctrl+alt+v`, or the prefix form `prefix+i`.
 
 ## Configuration: where images are stored
 
@@ -100,12 +110,14 @@ MIT — see [LICENSE](LICENSE).
 
 ## По-русски
 
-Плагин для [Herdr](https://herdr.dev): вставка картинок в промпт агента одной
-клавишей, как в Claude Code.
+Плагин для [Herdr](https://herdr.dev): вставка картинок в промпт **любого
+агента** (Codex, Gemini, Claude Code…) — как встроенная вставка Claude Code,
+которой у других агентов нет.
 
-Нажатие хоткея → картинка из буфера обмена сохраняется в PNG-файл → абсолютный
-путь автоматически печатается в поле ввода активного агента (Claude Code,
-Codex, Gemini…). Больше не нужно сохранять скриншот руками и писать путь.
+Нажал **Ctrl+V** → картинка из буфера сохранилась в PNG → в поле ввода
+активного агента вставилось `[Image #N] /абсолютный/путь.png` → агент читает
+файл и видит изображение. Если в буфере текст, а не картинка — вставится
+текст, так что обычная вставка не ломается.
 
 **Поддержка:** WSL (буфер Windows через `powershell.exe`) и Linux
 (`wl-paste`/`xclip`). Требуется Herdr 0.7.4+, `jq` и `base64`.
@@ -117,14 +129,15 @@ Codex, Gemini…). Больше не нужно сохранять скринш�
 
 ```toml
 [[keys.command]]
-key = "prefix+i"
+key = "ctrl+v"
 type = "plugin_action"
 command = "paste-image.paste"
-description = "paste clipboard image as path"
+description = "paste clipboard image (or text) into active agent"
 ```
 
-По умолчанию это `Ctrl+b`, затем `i`. После правки конфига — `prefix+shift+r`
-или перезапуск Herdr.
+После правки конфига — `prefix+shift+r` или перезапуск Herdr. У Claude Code
+остаётся родная вставка на **Alt+V** (Windows/WSL) — herdr её не трогает.
+Если терминал перехватывает Ctrl+V — возьми `ctrl+alt+v` или `prefix+i`.
 
 **Где хранить картинки** (настраивается):
 

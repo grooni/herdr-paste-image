@@ -49,11 +49,36 @@ read_clipboard_wsl() {
   b64=$("$powershell" -NoProfile -Command '
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
+    function Emit-B64([System.Drawing.Image]$img) {
+      $ms = New-Object System.IO.MemoryStream
+      $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+      [Console]::Out.Write([Convert]::ToBase64String($ms.ToArray()))
+      exit 0
+    }
+    # 1) plain bitmap/screenshot (Win+Shift+S, PrintScreen, browser "copy image")
     $img = [System.Windows.Forms.Clipboard]::GetImage()
-    if ($null -eq $img) { exit 1 }
-    $ms = New-Object System.IO.MemoryStream
-    $img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-    [Console]::Out.Write([Convert]::ToBase64String($ms.ToArray()))
+    if ($null -ne $img) { Emit-B64 $img }
+    # 2) explicit PNG stream placed by some apps
+    $png = [System.Windows.Forms.Clipboard]::GetData("PNG")
+    if ($png -is [byte[]] -and $png.Length -gt 0) {
+      [Console]::Out.Write([Convert]::ToBase64String($png))
+      exit 0
+    }
+    # 3) Office/EMF vector image (e.g. copied from Word/Excel)
+    $mf = [System.Windows.Forms.Clipboard]::GetData("EnhancedMetafile")
+    if ($mf -is [System.Drawing.Imaging.Metafile]) {
+      $w = 1; $h = 1
+      try { $w = [int]$mf.Width; $h = [int]$mf.Height } catch {}
+      if ($w -lt 1) { $w = 800 }
+      if ($h -lt 1) { $h = 600 }
+      $bmp = New-Object System.Drawing.Bitmap($w, $h)
+      $g = [System.Drawing.Graphics]::FromImage($bmp)
+      $g.Clear([System.Drawing.Color]::White)
+      $g.DrawImage($mf, 0, 0, $w, $h)
+      $g.Dispose()
+      Emit-B64 $bmp
+    }
+    exit 1
   ' 2>/dev/null | tr -d '\r\n') || return 1
   b64="${b64#*$'\xEF\xBB\xBF'}"             # strip UTF-8 BOM if present
   [[ -n "$b64" ]] || return 1
@@ -86,8 +111,37 @@ if [[ "$read_ok" -ne 1 ]]; then
   read_clipboard_linux > "$tmp" && read_ok=1
 fi
 
+# --- No image: fall back to pasting clipboard text, so binding this action
+# --- to ctrl+v does not break normal text paste.
 if [[ "$read_ok" -ne 1 ]] || [[ ! -s "$tmp" ]]; then
-  fail "clipboard has no image"
+  clip_text=""
+  if command -v powershell.exe >/dev/null 2>&1; then
+    clip_text=$(powershell.exe -NoProfile -Command \
+      '[Console]::Out.Write([System.Windows.Forms.Clipboard]::GetText())' 2>/dev/null \
+      | tr -d '\r' | head -c 100000) || clip_text=""
+  elif command -v wl-paste >/dev/null 2>&1; then
+    clip_text=$(wl-paste --no-newline 2>/dev/null | head -c 100000) || clip_text=""
+  elif command -v xclip >/dev/null 2>&1; then
+    clip_text=$(xclip -selection clipboard -o 2>/dev/null | head -c 100000) || clip_text=""
+  fi
+  if [[ -n "$clip_text" ]]; then
+    # Focus target pane.
+    pane_id=$("$HERDR" pane current 2>/dev/null | jq -r '.result.pane.pane_id // empty')
+    [[ -z "$pane_id" ]] && pane_id="${HERDR_PANE_ID:-}"
+    [[ -z "$pane_id" ]] && fail "no focused pane found"
+    if [[ "$clip_text" == *$'\n'* ]]; then
+      # Multiline: wrap in bracketed-paste escapes so TUIs (Claude Code,
+      # Codex) treat it as one paste instead of submitting per line.
+      printf '\x1b[200~%s\x1b[201~' "$clip_text" > "$tmp"
+    else
+      printf '%s' "$clip_text" > "$tmp"
+    fi
+    "$HERDR" pane send-text "$pane_id" "$(cat "$tmp")" \
+      || fail "cannot send text to pane $pane_id"
+    log "pasted clipboard text into pane $pane_id"
+    exit 0
+  fi
+  fail "clipboard is empty"
 fi
 
 # Validate PNG magic bytes.
@@ -105,6 +159,13 @@ while [[ -e "$dest" ]]; do
 done
 mv "$tmp" "$dest" || fail "cannot write file: $dest"
 trap - EXIT
+
+# Image counter for the "[Image #N]" label, one per machine.
+STATE_DIR="${HERDR_PLUGIN_STATE_DIR:-$HOME/.local/state/herdr-paste-image}"
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+img_n=$(cat "$STATE_DIR/counter" 2>/dev/null || echo 0)
+img_n=$((img_n + 1))
+echo "$img_n" > "$STATE_DIR/counter" 2>/dev/null || true
 
 # Find the focused pane to type the path into.
 pane_id=$("$HERDR" pane current 2>/dev/null | jq -r '.result.pane.pane_id // empty')
