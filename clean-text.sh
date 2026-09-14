@@ -48,15 +48,31 @@ fi
 # --- 2. Unwrap soft line breaks --------------------------------------------
 # After the margin strip, every piece of a terminal-wrapped line fills
 # the wrap width exactly; only the last piece is shorter. Rejoin each
-# full-width line with the next one. Only apply when the wrap width
-# looks like a terminal (>= 40 chars), so short text is never touched.
+# full-width line with the next one.
+#   - wrap width >= 40: always rejoin (clearly a terminal wrap)
+#   - narrow panes: rejoin only when the break is mid-word — the line
+#     ends with a letter/digit/path char (no space or punctuation) and
+#     the next line starts with a lowercase letter/digit — so normal
+#     short text (bullets, sentences) is never touched.
 max=$(awk '{ if (length($0) > m) m = length($0) } END { print m + 0 }' "$tmpf")
 joined=0
-if [[ "$max" -ge 40 ]]; then
+if [[ "$max" -ge 20 ]]; then
   awk -v w="$max" '
-    length($0) == w { buf = buf $0; next }
-    { print buf $0; buf = "" }
-    END { if (buf != "") print buf }
+    { lines[NR] = $0 }
+    END {
+      buf = ""
+      for (i = 1; i <= NR; i++) {
+        keep = 0
+        if (i < NR && length(lines[i]) == w) {
+          if (w >= 40) keep = 1
+          else if (lines[i] ~ /[A-Za-z0-9\/_\-а-яё]$/ &&
+                   lines[i+1] ~ /^[a-z0-9a-z0-9\/._\-а-яё]/) keep = 1
+        }
+        if (keep) { buf = buf lines[i] }
+        else { print buf lines[i]; buf = "" }
+      }
+      if (buf != "") print buf
+    }
   ' "$tmpf" > "$tmpf.u" && mv "$tmpf.u" "$tmpf"
   joined=1
 fi
