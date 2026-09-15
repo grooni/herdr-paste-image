@@ -125,3 +125,5 @@ can install it with `herdr plugin install <owner>/herdr-paste-image`.
 MIT — see [LICENSE](LICENSE).
 
 ---
+Site & contact: [grooni.com](https://grooni.com)
+
