@@ -7,7 +7,7 @@ panes:
    experience of Claude Code**. Press a key → the plugin grabs the image from
    your clipboard, saves it as a PNG file, and types
    `[Image #N] /absolute/path.png` into the focused agent pane (Codex, Gemini
-   CLI, Claude Code, …). The agent reads the file and sees the actual image —
+   CLI). The agent reads the file and sees the actual image —
    the same result as Claude Code's native clipboard paste, which other
    agent CLIs don't have. If the clipboard contains text instead of an
    image, the plugin pastes the text, so binding it to a direct key does not
