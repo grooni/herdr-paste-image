@@ -176,7 +176,11 @@ fi
 [[ -z "$pane_id" ]] && pane_id="${HERDR_PANE_ID:-}"
 [[ -z "$pane_id" ]] && fail "no focused pane found"
 
-"$HERDR" pane send-text "$pane_id" "$dest" || fail "cannot send text to pane $pane_id"
+# The "[Image #N] <path>" label mirrors Claude Code's native image-paste
+# format, so agents reliably treat the path as an image and read the file
+# (a bare path is often ignored as plain text).
+"$HERDR" pane send-text "$pane_id" "[Image #${img_n}] $dest" \
+  || fail "cannot send text to pane $pane_id"
 
 notify "Image saved: $dest"
 log "saved $dest -> pane $pane_id"
