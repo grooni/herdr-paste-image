@@ -5,9 +5,11 @@ panes:
 
 1. **Paste image** — gives **every AI agent in Herdr the image-paste
    experience of Claude Code**. Press a key → the plugin grabs the image from
-   your clipboard, saves it as a PNG file, and types
-   `[Image #N] /absolute/path.png` into the focused agent pane (Codex, Gemini
-   CLI). The agent reads the file and sees the actual image —
+   your clipboard, saves it as a PNG file, and types its absolute path into
+   the focused agent pane (Codex, Gemini CLI). In Claude Code panes the path
+   gets an `[Image #N]` prefix — the format of Claude Code's own image paste —
+   because Claude Code ignores a bare path as plain text. The agent reads
+   the file and sees the actual image —
    the same result as Claude Code's native clipboard paste, which other
    agent CLIs don't have. If the clipboard contains text instead of an
    image, the plugin pastes the text, so binding it to a direct key does not

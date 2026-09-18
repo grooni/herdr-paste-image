@@ -165,27 +165,37 @@ done
 mv "$tmp" "$dest" || fail "cannot write file: $dest"
 trap - EXIT
 
-# Image counter for the "[Image #N]" label, one per machine.
-STATE_DIR="${HERDR_PLUGIN_STATE_DIR:-$HOME/.local/state/herdr-paste-image}"
-mkdir -p "$STATE_DIR" 2>/dev/null || true
-img_n=$(cat "$STATE_DIR/counter" 2>/dev/null || echo 0)
-img_n=$((img_n + 1))
-echo "$img_n" > "$STATE_DIR/counter" 2>/dev/null || true
-
-# Find the focused pane to type the path into.
-pane_id=$("$HERDR" pane current 2>/dev/null | jq -r '.result.pane.pane_id // empty')
-if [[ -z "$pane_id" && -n "${HERDR_PLUGIN_CONTEXT_JSON:-}" ]]; then
-  pane_id=$(printf '%s' "$HERDR_PLUGIN_CONTEXT_JSON" \
-            | jq -r '.focused_pane_id // .focused_pane.pane_id // .pane.pane_id // empty' 2>/dev/null)
+# Find the focused pane to type the path into, and which agent runs in it.
+pane_json=$("$HERDR" pane current 2>/dev/null)
+pane_id=$(printf '%s' "$pane_json" | jq -r '.result.pane.pane_id // empty')
+agent=$(printf '%s' "$pane_json" | jq -r '.result.pane.agent // empty')
+if [[ -n "${HERDR_PLUGIN_CONTEXT_JSON:-}" ]]; then
+  ctx_agent=$(printf '%s' "$HERDR_PLUGIN_CONTEXT_JSON" \
+              | jq -r '.focused_pane_agent // .focused_pane.agent // empty' 2>/dev/null)
+  agent="${agent:-$ctx_agent}"
+  if [[ -z "$pane_id" ]]; then
+    pane_id=$(printf '%s' "$HERDR_PLUGIN_CONTEXT_JSON" \
+              | jq -r '.focused_pane_id // .focused_pane.pane_id // .pane.pane_id // empty' 2>/dev/null)
+  fi
 fi
 [[ -z "$pane_id" ]] && pane_id="${HERDR_PANE_ID:-}"
 [[ -z "$pane_id" ]] && fail "no focused pane found"
 
-# The "[Image #N] <path>" label mirrors Claude Code's native image-paste
-# format, so agents reliably treat the path as an image and read the file
-# (a bare path is often ignored as plain text).
-"$HERDR" pane send-text "$pane_id" "[Image #${img_n}] $dest" \
-  || fail "cannot send text to pane $pane_id"
+# Claude Code ignores a bare pasted path as plain text; prefixing it with
+# the "[Image #N]" label (the format of its own native image paste) makes
+# it read the file. Codex, Gemini and other agents pick up plain paths
+# fine, so they get the bare path without the extra noise.
+text="$dest"
+if [[ "$agent" == "claude" ]]; then
+  STATE_DIR="${HERDR_PLUGIN_STATE_DIR:-$HOME/.local/state/herdr/plugins/paste-image}"
+  mkdir -p "$STATE_DIR" 2>/dev/null || true
+  img_n=$(cat "$STATE_DIR/counter" 2>/dev/null || echo 0)
+  img_n=$((img_n + 1))
+  echo "$img_n" > "$STATE_DIR/counter" 2>/dev/null || true
+  text="[Image #${img_n}] $dest"
+fi
+
+"$HERDR" pane send-text "$pane_id" "$text" || fail "cannot send text to pane $pane_id"
 
 notify "Image saved: $dest"
 log "saved $dest -> pane $pane_id"
