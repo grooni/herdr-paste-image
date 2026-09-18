@@ -80,7 +80,12 @@ read_clipboard_wsl() {
     }
     exit 1
   ' 2>/dev/null | tr -d '\r\n') || return 1
-  b64="${b64#*$'\xEF\xBB\xBF'}"             # strip UTF-8 BOM if present
+  # Strip UTF-8 BOM if present. Check only the first bytes: a leading-*
+  # pattern removal is O(n^2) in bash and spins for minutes on the large
+  # base64 strings big screenshots produce.
+  if [[ "${b64:0:3}" == $'\xEF\xBB\xBF' ]]; then
+    b64="${b64:3}"
+  fi
   [[ -n "$b64" ]] || return 1
   printf '%s' "$b64" | base64 -d
 }
